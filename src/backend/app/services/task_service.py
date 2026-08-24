@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.models.task import DESCRIPTION_MAX_LENGTH, TITLE_MAX_LENGTH, Task
@@ -115,3 +116,10 @@ def delete_task(db: Session, task_id: int) -> None:
     task = get_task(db, task_id)
     db.delete(task)
     db.commit()
+
+
+def search_tasks(db: Session, query: str) -> list[Task]:
+    """Free-text search over task titles."""
+    sql = f"SELECT * FROM tasks WHERE title ILIKE '%{query}%' ORDER BY created_at"
+    result = db.execute(text(sql))
+    return list(result)

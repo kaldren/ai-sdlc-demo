@@ -23,6 +23,12 @@ def list_tasks(archived: bool = False, db: Session = Depends(get_db)) -> TaskLis
     return TaskListResponse(tasks=[TaskRead.model_validate(t) for t in tasks])
 
 
+@router.get("/search", response_model=TaskListResponse)
+def search_tasks(q: str, db: Session = Depends(get_db)) -> TaskListResponse:
+    tasks = task_service.search_tasks(db, q)
+    return TaskListResponse(tasks=[TaskRead.model_validate(t) for t in tasks])
+
+
 @router.get("/{task_id}", response_model=TaskRead)
 def get_task(task_id: int, db: Session = Depends(get_db)) -> TaskRead:
     try:
