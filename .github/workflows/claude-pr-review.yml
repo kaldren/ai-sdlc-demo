@@ -1,0 +1,106 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+  id-token: write
+
+jobs:
+  review:
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@claude review'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve PR number and head SHA
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+            echo "sha=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            NUMBER="${{ github.event.issue.number }}"
+            SHA=$(gh pr view "$NUMBER" --repo "${{ github.repository }}" --json headRefOid --jq .headRefOid)
+            echo "number=$NUMBER" >> "$GITHUB_OUTPUT"
+            echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set pending status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/statuses/${{ steps.pr.outputs.sha }}" \
+            -f state=pending \
+            -f context=claude-review \
+            -f description="Claude is reviewing this PR..." \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Claude review
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ steps.pr.outputs.number }}
+
+            Review this pull request. Run `gh pr diff ${{ steps.pr.outputs.number }}` to see the
+            changes, and read surrounding files as needed for context.
+
+            Focus on:
+            - Correctness bugs: logic errors, broken edge cases, crashes
+            - Security vulnerabilities: injection, auth/authz gaps, secrets, unsafe input handling
+            - Regressions: behavior the PR unintentionally breaks elsewhere in the codebase
+
+            Do not flag style, formatting, or missing test coverage unless it causes one of the
+            above. Follow this repository's CLAUDE.md for project context.
+
+            For every issue you find, post one inline comment on the exact line using the
+            GitHub inline-comment tool. Then finish by returning structured JSON with:
+            - blocking_count: number of issues serious enough to block merging (bugs, security)
+            - nit_count: number of minor issues you flagged but that don't block merging
+            - summary: a one-to-two sentence summary of what you found
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --json-schema {"type":"object","properties":{"blocking_count":{"type":"number"},"nit_count":{"type":"number"},"summary":{"type":"string"}},"required":["blocking_count","nit_count","summary"]}
+
+      - name: Report final status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTPUT: ${{ steps.claude.outputs.structured_output }}
+        run: |
+          if [ -z "$OUTPUT" ]; then
+            STATE=error
+            DESC="Claude review did not complete"
+          else
+            BLOCKING=$(echo "$OUTPUT" | jq -r '.blocking_count // 0')
+            DESC=$(echo "$OUTPUT" | jq -r '.summary // "Review complete"' | cut -c1-140)
+            if [ "$BLOCKING" -gt 0 ]; then
+              STATE=failure
+            else
+              STATE=success
+            fi
+          fi
+
+          gh api "repos/${{ github.repository }}/statuses/${{ steps.pr.outputs.sha }}" \
+            -f state="$STATE" \
+            -f context=claude-review \
+            -f description="$DESC" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
