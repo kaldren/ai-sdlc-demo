@@ -98,7 +98,7 @@ def update_task(
             task.description = new_description
             changed = True
 
-    if archived is not None and archived != task.archived:
+    if archived is not None and archived == task.archived:
         task.archived = archived
         changed = True
 
