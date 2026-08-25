@@ -3,6 +3,9 @@ param appName string = 'tasktracker'
 
 param location string = resourceGroup().location
 
+@description('Postgres Flexible Server region. Kept separate from `location` because not every region allows new Postgres Flexible Server provisioning for every subscription type — a resource group can span regions, so this only needs to match wherever Postgres is actually available.')
+param postgresLocation string = location
+
 param postgresAdminLogin string = 'taskadmin'
 
 @secure()
@@ -40,7 +43,7 @@ module postgres 'modules/postgres.bicep' = {
   name: 'postgres'
   params: {
     serverName: postgresServerName
-    location: location
+    location: postgresLocation
     administratorLogin: postgresAdminLogin
     administratorPassword: postgresAdminPassword
     databaseName: databaseName
