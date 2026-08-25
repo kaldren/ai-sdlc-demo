@@ -1,0 +1,198 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AZURE_RESOURCE_GROUP: rg-tasktracker
+  AZURE_LOCATION: eastus
+  APP_NAME: tasktracker
+  BACKEND_IMAGE_NAME: tasktracker-backend
+  FRONTEND_IMAGE_NAME: tasktracker-frontend
+
+jobs:
+  provision-infra:
+    name: Provision infrastructure
+    runs-on: ubuntu-latest
+    outputs:
+      acrLoginServer: ${{ steps.deploy.outputs.acrLoginServer }}
+      backendAppName: ${{ steps.deploy.outputs.backendAppName }}
+      frontendAppName: ${{ steps.deploy.outputs.frontendAppName }}
+      backendFqdn: ${{ steps.deploy.outputs.backendFqdn }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Azure CLI extensions
+        run: |
+          az extension add --name containerapp --upgrade --only-show-errors
+          az bicep install
+
+      - name: Ensure resource group exists
+        run: |
+          az group create \
+            --name "$AZURE_RESOURCE_GROUP" \
+            --location "$AZURE_LOCATION" \
+            --output none
+
+      - name: Preserve currently deployed images (avoid resetting to placeholder)
+        id: current
+        run: |
+          # Distinguishes "the app doesn't exist yet" (fine, use the Bicep default
+          # placeholder) from any other failure (auth/network/throttling), which must
+          # NOT be treated as "no current image" -- doing so would silently reset a
+          # live app back to the placeholder image on a transient CLI error.
+          get_current_image() {
+            local app_name="$1" err image
+            err=$(mktemp)
+            if image=$(az containerapp show \
+                --name "$app_name" \
+                --resource-group "$AZURE_RESOURCE_GROUP" \
+                --query "properties.template.containers[0].image" -o tsv 2>"$err"); then
+              rm -f "$err"
+              printf '%s' "$image"
+              return 0
+            fi
+            if grep -qi "ResourceNotFound" "$err"; then
+              rm -f "$err"
+              return 0
+            fi
+            echo "::error::Failed to look up current image for $app_name:" >&2
+            cat "$err" >&2
+            rm -f "$err"
+            return 1
+          }
+
+          backend_image=$(get_current_image "${APP_NAME}-backend")
+          frontend_image=$(get_current_image "${APP_NAME}-frontend")
+          echo "backend_image=$backend_image" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=$frontend_image" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy Bicep template
+        id: deploy
+        env:
+          BACKEND_IMAGE: ${{ steps.current.outputs.backend_image }}
+          FRONTEND_IMAGE: ${{ steps.current.outputs.frontend_image }}
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+        run: |
+          # Parameters go through a JSON file (built via jq, value read from env) rather than
+          # `--parameters key=value` CLI args, so the password never appears in this process's
+          # argv (and therefore never in `ps aux` output on the runner).
+          jq -n \
+            --arg appName "$APP_NAME" \
+            --arg postgresAdminPassword "$POSTGRES_ADMIN_PASSWORD" \
+            --arg backendImage "$BACKEND_IMAGE" \
+            --arg frontendImage "$FRONTEND_IMAGE" \
+            '{
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": (
+                { appName: { value: $appName }, postgresAdminPassword: { value: $postgresAdminPassword } }
+                + (if $backendImage != "" then { backendImage: { value: $backendImage } } else {} end)
+                + (if $frontendImage != "" then { frontendImage: { value: $frontendImage } } else {} end)
+              )
+            }' > params.json
+
+          az deployment group create \
+            --name tasktracker-infra \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters @params.json \
+            --output none
+
+          rm -f params.json
+
+          acrLoginServer=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n tasktracker-infra --query properties.outputs.acrLoginServer.value -o tsv)
+          backendAppName=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n tasktracker-infra --query properties.outputs.backendAppName.value -o tsv)
+          frontendAppName=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n tasktracker-infra --query properties.outputs.frontendAppName.value -o tsv)
+          backendFqdn=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n tasktracker-infra --query properties.outputs.backendFqdn.value -o tsv)
+
+          echo "acrLoginServer=$acrLoginServer" >> "$GITHUB_OUTPUT"
+          echo "backendAppName=$backendAppName" >> "$GITHUB_OUTPUT"
+          echo "frontendAppName=$frontendAppName" >> "$GITHUB_OUTPUT"
+          echo "backendFqdn=$backendFqdn" >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    needs: provision-infra
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Azure Container Registry
+        run: az acr login --name "$(echo '${{ needs.provision-infra.outputs.acrLoginServer }}' | cut -d. -f1)"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: src/backend
+          push: true
+          tags: |
+            ${{ needs.provision-infra.outputs.acrLoginServer }}/${{ env.BACKEND_IMAGE_NAME }}:${{ github.sha }}
+            ${{ needs.provision-infra.outputs.acrLoginServer }}/${{ env.BACKEND_IMAGE_NAME }}:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: src/frontend
+          push: true
+          tags: |
+            ${{ needs.provision-infra.outputs.acrLoginServer }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
+            ${{ needs.provision-infra.outputs.acrLoginServer }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  deploy:
+    name: Deploy images to Container Apps
+    runs-on: ubuntu-latest
+    needs: [provision-infra, build-and-push]
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Azure CLI extensions
+        run: az extension add --name containerapp --upgrade --only-show-errors
+
+      - name: Update backend Container App
+        run: |
+          az containerapp update \
+            --name "${{ needs.provision-infra.outputs.backendAppName }}" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "${{ needs.provision-infra.outputs.acrLoginServer }}/${{ env.BACKEND_IMAGE_NAME }}:${{ github.sha }}"
+
+      - name: Update frontend Container App
+        run: |
+          az containerapp update \
+            --name "${{ needs.provision-infra.outputs.frontendAppName }}" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "${{ needs.provision-infra.outputs.acrLoginServer }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}"
