@@ -12,6 +12,10 @@ permissions:
 env:
   AZURE_RESOURCE_GROUP: rg-tasktracker
   AZURE_LOCATION: eastus
+  # Kept separate from AZURE_LOCATION: this subscription has new Postgres Flexible
+  # Server provisioning restricted in eastus, but a resource group can span regions,
+  # so only the Postgres module needs to target a region where it's actually available.
+  AZURE_POSTGRES_LOCATION: centralus
   APP_NAME: tasktracker
   BACKEND_IMAGE_NAME: tasktracker-backend
   FRONTEND_IMAGE_NAME: tasktracker-frontend
@@ -93,6 +97,7 @@ jobs:
           # argv (and therefore never in `ps aux` output on the runner).
           jq -n \
             --arg appName "$APP_NAME" \
+            --arg postgresLocation "$AZURE_POSTGRES_LOCATION" \
             --arg postgresAdminPassword "$POSTGRES_ADMIN_PASSWORD" \
             --arg backendImage "$BACKEND_IMAGE" \
             --arg frontendImage "$FRONTEND_IMAGE" \
@@ -100,7 +105,11 @@ jobs:
               "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
               "contentVersion": "1.0.0.0",
               "parameters": (
-                { appName: { value: $appName }, postgresAdminPassword: { value: $postgresAdminPassword } }
+                {
+                  appName: { value: $appName },
+                  postgresLocation: { value: $postgresLocation },
+                  postgresAdminPassword: { value: $postgresAdminPassword }
+                }
                 + (if $backendImage != "" then { backendImage: { value: $backendImage } } else {} end)
                 + (if $frontendImage != "" then { frontendImage: { value: $frontendImage } } else {} end)
               )
