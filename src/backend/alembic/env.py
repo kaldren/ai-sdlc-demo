@@ -7,7 +7,10 @@ from app.db import Base, DATABASE_URL
 from app.models import task  # noqa: F401  (ensures Task is registered on Base.metadata)
 
 config = context.config
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# set_main_option() stores the value in a ConfigParser section, which applies
+# BasicInterpolation on read — a bare "%" (e.g. from a URL-encoded password
+# like "%40") raises "invalid interpolation syntax" unless doubled to "%%".
+config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
