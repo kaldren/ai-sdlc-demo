@@ -38,7 +38,9 @@ declare global {
 
 const BASE_URL =
   window.__RUNTIME_CONFIG__?.API_BASE_URL ||
-  (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000");
+  // 127.0.0.1, not localhost: on this machine "localhost" can resolve to ::1 first
+  // and hang if anything else is squatting on that loopback port (see docs/architecture.md).
+  (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000");
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {

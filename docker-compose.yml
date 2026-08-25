@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpass
+      POSTGRES_DB: tasktracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskuser -d tasktracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./src/backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://taskuser:taskpass@postgres:5432/tasktracker
+      # Accept both hostnames: the browser's Origin header reflects whichever one
+      # the user actually typed to load the frontend, and it must match exactly.
+      CORS_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  frontend:
+    build: ./src/frontend
+    environment:
+      # 127.0.0.1, not localhost: on this machine Docker Desktop's IPv6 loopback
+      # (::1) port-proxy accepts connections but never forwards them, so anything
+      # resolving "localhost" hangs forever. 127.0.0.1 forces IPv4, which works.
+      API_BASE_URL: http://127.0.0.1:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80/"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Live log viewer for all three containers in one place: http://localhost:9999
+  # Read-only access to the Docker socket so it can tail container logs; it
+  # doesn't expose or need application credentials.
+  dozzle:
+    image: amir20/dozzle:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "9999:8080"
+
+volumes:
+  postgres-data:
