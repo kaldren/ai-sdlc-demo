@@ -30,7 +30,16 @@ export class ApiError extends Error {
   }
 }
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+declare global {
+  interface Window {
+    __RUNTIME_CONFIG__?: { API_BASE_URL?: string };
+  }
+}
+
+const BASE_URL =
+  window.__RUNTIME_CONFIG__?.API_BASE_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "http://localhost:8000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
