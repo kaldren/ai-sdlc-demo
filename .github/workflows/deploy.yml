@@ -11,7 +11,7 @@ permissions:
 
 env:
   AZURE_RESOURCE_GROUP: rg-tasktracker
-  AZURE_LOCATION: eastus
+  AZURE_LOCATION: centralus
   APP_NAME: tasktracker
   BACKEND_IMAGE_NAME: tasktracker-backend
   FRONTEND_IMAGE_NAME: tasktracker-frontend
