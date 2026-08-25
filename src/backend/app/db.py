@@ -3,10 +3,27 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+psycopg://taskuser:taskpass@localhost:5432/tasktracker",
-)
+
+def _build_database_url() -> str:
+    explicit = os.environ.get("DATABASE_URL")
+    if explicit:
+        return explicit
+
+    # Falls back to individual PG* vars so deployments can pass the password as its
+    # own secret without ever concatenating it into a connection string in IaC.
+    user = os.environ.get("PGUSER", "taskuser")
+    password = os.environ.get("PGPASSWORD", "taskpass")
+    host = os.environ.get("PGHOST", "localhost")
+    port = os.environ.get("PGPORT", "5432")
+    database = os.environ.get("PGDATABASE", "tasktracker")
+    url = f"postgresql+psycopg://{user}:{password}@{host}:{port}/{database}"
+    sslmode = os.environ.get("PGSSLMODE")
+    if sslmode:
+        url += f"?sslmode={sslmode}"
+    return url
+
+
+DATABASE_URL = _build_database_url()
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

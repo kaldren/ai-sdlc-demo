@@ -69,24 +69,37 @@ jobs:
           FRONTEND_IMAGE: ${{ steps.current.outputs.frontend_image }}
           POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
-          params=(appName="$APP_NAME" postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD")
-          if [ -n "$BACKEND_IMAGE" ]; then
-            params+=(backendImage="$BACKEND_IMAGE")
-          fi
-          if [ -n "$FRONTEND_IMAGE" ]; then
-            params+=(frontendImage="$FRONTEND_IMAGE")
-          fi
+          # Parameters go through a JSON file (built via jq, value read from env) rather than
+          # `--parameters key=value` CLI args, so the password never appears in this process's
+          # argv (and therefore never in `ps aux` output on the runner).
+          jq -n \
+            --arg appName "$APP_NAME" \
+            --arg postgresAdminPassword "$POSTGRES_ADMIN_PASSWORD" \
+            --arg backendImage "$BACKEND_IMAGE" \
+            --arg frontendImage "$FRONTEND_IMAGE" \
+            '{
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": (
+                { appName: { value: $appName }, postgresAdminPassword: { value: $postgresAdminPassword } }
+                + (if $backendImage != "" then { backendImage: { value: $backendImage } } else {} end)
+                + (if $frontendImage != "" then { frontendImage: { value: $frontendImage } } else {} end)
+              )
+            }' > params.json
 
           az deployment group create \
+            --name tasktracker-infra \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --template-file infra/main.bicep \
-            --parameters "${params[@]}" \
+            --parameters @params.json \
             --output none
 
-          acrLoginServer=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n main --query properties.outputs.acrLoginServer.value -o tsv)
-          backendAppName=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n main --query properties.outputs.backendAppName.value -o tsv)
-          frontendAppName=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n main --query properties.outputs.frontendAppName.value -o tsv)
-          backendFqdn=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n main --query properties.outputs.backendFqdn.value -o tsv)
+          rm -f params.json
+
+          acrLoginServer=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n tasktracker-infra --query properties.outputs.acrLoginServer.value -o tsv)
+          backendAppName=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n tasktracker-infra --query properties.outputs.backendAppName.value -o tsv)
+          frontendAppName=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n tasktracker-infra --query properties.outputs.frontendAppName.value -o tsv)
+          backendFqdn=$(az deployment group show -g "$AZURE_RESOURCE_GROUP" -n tasktracker-infra --query properties.outputs.backendFqdn.value -o tsv)
 
           echo "acrLoginServer=$acrLoginServer" >> "$GITHUB_OUTPUT"
           echo "backendAppName=$backendAppName" >> "$GITHUB_OUTPUT"

@@ -13,10 +13,19 @@ updates the two Container Apps to the new images.
   backend's URL is injected at container *startup* (not build time) via
   `docker-entrypoint.d/40-runtime-config.sh`, which writes `/config.js` from the
   `API_BASE_URL` env var — so the same image works in any environment without rebuilding.
-- **Database**: Azure Database for PostgreSQL Flexible Server (Burstable B1ms).
-- Both apps run in one Container Apps Environment, pull images from one Azure Container
-  Registry using a shared user-assigned managed identity (no registry passwords), and the
-  Postgres connection string is stored as a Container Apps secret, never in plain env vars.
+- **Database**: Azure Database for PostgreSQL Flexible Server (Burstable B1ms). The admin
+  password is passed to the backend Container App as its own secret (`PGPASSWORD`) —
+  unconcatenated with anything else — while host/port/user/database/sslmode are plain env
+  vars; `app/db.py` assembles the connection string at runtime. This avoids ever combining
+  the secure password parameter with other values inside Bicep, where the result would be a
+  plain (non-secure) variable.
+- Both apps run in one Container Apps Environment and pull images from one Azure Container
+  Registry using a shared user-assigned managed identity (no registry passwords).
+- The Postgres firewall currently allows all Azure-hosted resources (the
+  `AllowAllAzureServicesAndResourcesWithinAzureIps` rule), since only this app's Container
+  Apps need access but Container Apps' outbound IPs aren't static without VNet integration.
+  Tightening this to a private endpoint + VNet-integrated Container Apps environment is a
+  reasonable follow-up if this moves beyond a demo.
 
 ## One-time setup (do this once, before the first push)
 

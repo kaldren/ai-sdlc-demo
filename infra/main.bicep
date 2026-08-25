@@ -49,7 +49,6 @@ module postgres 'modules/postgres.bicep' = {
 
 var backendAppName = '${appName}-backend'
 var frontendFqdn = '${appName}-frontend.${containerAppsEnvironment.outputs.defaultDomain}'
-var databaseUrl = 'postgresql+psycopg://${postgresAdminLogin}:${postgresAdminPassword}@${postgres.outputs.fqdn}:5432/${databaseName}?sslmode=require'
 
 module backendApp 'modules/container-app.bicep' = {
   name: 'backendApp'
@@ -66,9 +65,31 @@ module backendApp 'modules/container-app.bicep' = {
         name: 'CORS_ORIGINS'
         value: 'https://${frontendFqdn}'
       }
+      {
+        name: 'PGHOST'
+        value: postgres.outputs.fqdn
+      }
+      {
+        name: 'PGPORT'
+        value: '5432'
+      }
+      {
+        name: 'PGUSER'
+        value: postgresAdminLogin
+      }
+      {
+        name: 'PGDATABASE'
+        value: databaseName
+      }
+      {
+        name: 'PGSSLMODE'
+        value: 'require'
+      }
     ]
+    // Passed through unconcatenated so the secure password param never gets combined
+    // with other values into a plain (non-secure) Bicep variable or expression.
     secretEnv: {
-      DATABASE_URL: databaseUrl
+      PGPASSWORD: postgresAdminPassword
     }
   }
 }
