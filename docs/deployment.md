@@ -63,6 +63,14 @@ az ad app federated-credential create --id "$APP_ID" --parameters '{
 Add a second federated credential if you also want manual `workflow_dispatch` runs from
 other branches, or one scoped to `pull_request` if you later gate on PR environments.
 
+> **Gotcha:** if your GitHub org/repo has "use repository/owner ID in the OIDC subject
+> claim" enabled (a setting to make the subject survive renames), GitHub sends
+> `repo:<owner>@<ownerId>/<repo>@<repoId>:ref:refs/heads/main` instead of the plain
+> `repo:<owner>/<repo>:...` form above, and Azure AD login fails with `AADSTS700213: No
+> matching federated identity record found`. If you hit that, check the exact subject
+> GitHub sent (it's printed in the failed `azure/login` step's log under "subject claim")
+> and register a federated credential with that exact value.
+
 ### 3. Grant the app registration access to the subscription
 
 ```bash
