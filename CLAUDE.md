@@ -1,5 +1,5 @@
 <!-- SPECKIT START -->
-## Spec Kit
-
-Active feature: **001-task-management** — see `specs/001-task-management/plan.md` for the implementation plan, `specs/001-task-management/spec.md` for the feature specification.
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at specs/002-task-ui-redesign/plan.md
 <!-- SPECKIT END -->

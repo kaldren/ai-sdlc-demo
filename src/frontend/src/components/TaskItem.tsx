@@ -1,4 +1,12 @@
 import { useState } from "react";
+import {
+  Archive,
+  ArchiveRestore,
+  Check,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 import type { Task } from "../services/taskApi";
 
 interface TaskItemProps {
@@ -54,8 +62,14 @@ export default function TaskItem({
           onChange={(e) => setDescription(e.target.value)}
           aria-label="Edit task description"
         />
-        <button onClick={handleSave}>Save</button>
-        <button onClick={handleCancel}>Cancel</button>
+        <button className="btn-primary" onClick={handleSave}>
+          <Check aria-hidden="true" />
+          Save
+        </button>
+        <button className="btn-secondary" onClick={handleCancel}>
+          <X aria-hidden="true" />
+          Cancel
+        </button>
         {error && <p role="alert">{error}</p>}
       </li>
     );
@@ -68,18 +82,44 @@ export default function TaskItem({
         {task.description && <p>{task.description}</p>}
       </div>
       <div className="task-item__actions">
-        <button onClick={() => setIsEditing(true)}>Edit</button>
-        <button onClick={() => onToggleArchived(task.id, !task.archived)}>
+        <button className="btn-secondary" onClick={() => setIsEditing(true)}>
+          <Pencil aria-hidden="true" />
+          Edit
+        </button>
+        <button
+          className="btn-secondary"
+          onClick={() => onToggleArchived(task.id, !task.archived)}
+        >
+          {task.archived ? (
+            <ArchiveRestore aria-hidden="true" />
+          ) : (
+            <Archive aria-hidden="true" />
+          )}
           {task.archived ? "Unarchive" : "Archive"}
         </button>
         {confirmingDelete ? (
           <>
             <span>Delete permanently?</span>
-            <button onClick={() => onDelete(task.id)}>Confirm</button>
-            <button onClick={() => setConfirmingDelete(false)}>Cancel</button>
+            <button className="btn-danger" onClick={() => onDelete(task.id)}>
+              <Check aria-hidden="true" />
+              Confirm
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => setConfirmingDelete(false)}
+            >
+              <X aria-hidden="true" />
+              Cancel
+            </button>
           </>
         ) : (
-          <button onClick={() => setConfirmingDelete(true)}>Delete</button>
+          <button
+            className="btn-danger"
+            onClick={() => setConfirmingDelete(true)}
+          >
+            <Trash2 aria-hidden="true" />
+            Delete
+          </button>
         )}
       </div>
     </li>

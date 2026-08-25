@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Archive, ListTodo } from "lucide-react";
 import TaskForm from "../components/TaskForm";
 import TaskList from "../components/TaskList";
 import * as taskApi from "../services/taskApi";
@@ -54,12 +55,14 @@ export default function TasksPage() {
           disabled={view === "active"}
           onClick={() => setView("active")}
         >
+          <ListTodo aria-hidden="true" />
           Active
         </button>
         <button
           disabled={view === "archived"}
           onClick={() => setView("archived")}
         >
+          <Archive aria-hidden="true" />
           Archived
         </button>
       </nav>

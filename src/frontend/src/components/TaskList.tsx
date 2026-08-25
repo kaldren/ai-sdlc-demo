@@ -17,7 +17,7 @@ export default function TaskList({
   onDelete,
 }: TaskListProps) {
   if (tasks.length === 0) {
-    return <p>{emptyMessage}</p>;
+    return <p className="tasks-page__empty">{emptyMessage}</p>;
   }
 
   return (

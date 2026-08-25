@@ -1,0 +1,218 @@
+:root {
+  --color-primary: #e31c5f;
+  --color-primary-hover: #c81552;
+  --color-danger: #c13515;
+  --color-danger-hover: #a32c11;
+  --color-bg: #ffffff;
+  --color-bg-subtle: #fff8f6;
+  --color-text: #222222;
+  --color-text-muted: #717171;
+  --color-border: #ebebeb;
+  --color-error-bg: #fdecea;
+  --color-error-text: #b3261e;
+
+  --font-family:
+    "Inter", "Helvetica Neue", Arial, sans-serif;
+
+  --radius-md: 12px;
+  --radius-lg: 999px;
+
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+
+  --input-height: 48px;
+  --button-height: 48px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Page layout */
+
+.tasks-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md) calc(var(--space-lg) * 2);
+}
+
+.tasks-page h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 var(--space-lg);
+}
+
+/* Tabs */
+
+.tasks-page__tabs {
+  display: flex;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-lg);
+}
+
+.tasks-page__tabs button {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  padding: var(--space-sm) var(--space-lg);
+  font-family: var(--font-family);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.tasks-page__tabs button:disabled {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  cursor: default;
+}
+
+/* Task list / cards */
+
+.task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.task-item {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.task-item__body strong {
+  font-size: 1.05rem;
+}
+
+.task-item__body p {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+}
+
+.task-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.tasks-page__empty {
+  color: var(--color-text-muted);
+  padding: var(--space-md) 0;
+}
+
+/* Alerts */
+
+[role="alert"] {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  margin: var(--space-sm) 0 0;
+  font-weight: 500;
+}
+
+/* Inputs */
+
+input[type="text"],
+input:not([type]) {
+  min-height: var(--input-height);
+  width: 100%;
+  padding: 0 var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family);
+  font-size: 1rem;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+input[type="text"]:focus,
+input:not([type]):focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(227, 28, 95, 0.15);
+}
+
+/* Buttons */
+
+button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: var(--button-height);
+  padding: 0 var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.btn-secondary {
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-bg-subtle);
+}
+
+.btn-danger {
+  background: var(--color-bg);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-danger);
+  color: #ffffff;
+}
+
+button svg {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+}

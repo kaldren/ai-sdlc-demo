@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { Plus } from "lucide-react";
 
 interface TaskFormProps {
   onCreate: (title: string, description: string) => Promise<void>;
@@ -45,7 +46,8 @@ export default function TaskForm({ onCreate }: TaskFormProps) {
         onChange={(e) => setDescription(e.target.value)}
         aria-label="Task description"
       />
-      <button type="submit" disabled={submitting}>
+      <button type="submit" className="btn-primary" disabled={submitting}>
+        <Plus aria-hidden="true" />
         Add Task
       </button>
       {error && <p role="alert">{error}</p>}
