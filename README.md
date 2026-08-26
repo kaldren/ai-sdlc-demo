@@ -44,8 +44,7 @@ a board:
   [`github/github-mcp-server`](https://github.com/github/github-mcp-server) as a project-scoped
   MCP server in `.mcp.json` (committed, no secret inside it). Each environment must export its
   own `GITHUB_PERSONAL_ACCESS_TOKEN` before starting Claude Code — the simplest way, if you
-  already use `gh`, is `setx GITHUB_PERSONAL_ACCESS_TOKEN (gh auth token)` (PowerShell) or
-  `export GITHUB_PERSONAL_ACCESS_TOKEN=$(gh auth token)` (bash), reusing your existing `repo`-
+  already use `gh`, is `$env:GITHUB_PERSONAL_ACCESS_TOKEN = (gh auth token)` (PowerShell) or
   scoped token. Restart Claude Code afterward and approve the `github` server when prompted
   (project-scoped MCP servers require explicit trust approval on first use).
 - **Intake**: give `spec-flow` (or `spec-author` directly) a GitHub issue reference — `#123`, a
