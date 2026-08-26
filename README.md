@@ -45,8 +45,9 @@ a board:
   MCP server in `.mcp.json` (committed, no secret inside it). Each environment must export its
   own `GITHUB_PERSONAL_ACCESS_TOKEN` before starting Claude Code — the simplest way, if you
   already use `gh`, is `$env:GITHUB_PERSONAL_ACCESS_TOKEN = (gh auth token)` (PowerShell) or
-  scoped token. Restart Claude Code afterward and approve the `github` server when prompted
-  (project-scoped MCP servers require explicit trust approval on first use).
+  `export GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)"` (bash/zsh). Restart Claude Code
+  afterward and approve the `github` server when prompted (project-scoped MCP servers require
+  explicit trust approval on first use).
 - **Intake**: give `spec-flow` (or `spec-author` directly) a GitHub issue reference — `#123`, a
   bare number, or a full issue URL — instead of a feature description. `spec-author` fetches the
   issue's title/body from the same repo as the git remote and uses it as the feature description.
