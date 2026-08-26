@@ -33,3 +33,30 @@ Ask for `spec-flow` to drive a whole feature through the flow, or invoke a stage
 for a single step. `speckit-constitution` and `speckit-taskstoissues` remain manually-invoked
 skills rather than agents — constitution changes need explicit project-owner sign-off, and
 taskstoissues creates real GitHub issues.
+
+## GitHub integration
+
+Feature work can start from a GitHub issue instead of free text, and the pipeline reports
+status back to that issue as it runs — mirroring how an enterprise team tracks feature work on
+a board:
+
+- **Setup (one-time per environment)**: this repo registers the official
+  [`github/github-mcp-server`](https://github.com/github/github-mcp-server) as a project-scoped
+  MCP server in `.mcp.json` (committed, no secret inside it). Each environment must export its
+  own `GITHUB_PERSONAL_ACCESS_TOKEN` before starting Claude Code — the simplest way, if you
+  already use `gh`, is `setx GITHUB_PERSONAL_ACCESS_TOKEN (gh auth token)` (PowerShell) or
+  `export GITHUB_PERSONAL_ACCESS_TOKEN=$(gh auth token)` (bash), reusing your existing `repo`-
+  scoped token. Restart Claude Code afterward and approve the `github` server when prompted
+  (project-scoped MCP servers require explicit trust approval on first use).
+- **Intake**: give `spec-flow` (or `spec-author` directly) a GitHub issue reference — `#123`, a
+  bare number, or a full issue URL — instead of a feature description. `spec-author` fetches the
+  issue's title/body from the same repo as the git remote and uses it as the feature description.
+- **Progress comments**: as each spec-flow gate is approved (spec, then plan), it posts a short
+  status comment back on the source issue.
+- **Closing the loop**: once `implementer` finishes, it posts a completion summary comment and
+  closes the issue if every task succeeded, or leaves it open (comment only) if something failed.
+- **Task issues**: `speckit-taskstoissues` (still manually invoked) links any task issues it
+  creates back to the source issue (`Part of #N`) when one is known.
+
+All GitHub writes are guarded the same way: they only ever target the repository resolved from
+`git config --get remote.origin.url`, never a different one.
