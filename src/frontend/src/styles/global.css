@@ -25,6 +25,20 @@
   --button-height: 48px;
 }
 
+[data-theme="dark"] {
+  --color-primary: #e31c5f;
+  --color-primary-hover: #c81552;
+  --color-danger: #f0674c;
+  --color-danger-hover: #a52b12;
+  --color-bg: #121212;
+  --color-bg-subtle: #1e1e1e;
+  --color-text: #f2f2f2;
+  --color-text-muted: #b8b8b8;
+  --color-border: #3a3a3a;
+  --color-error-bg: #3a1712;
+  --color-error-text: #f4877b;
+}
+
 *,
 *::before,
 *::after {
@@ -47,10 +61,18 @@ body {
   padding: var(--space-lg) var(--space-md) calc(var(--space-lg) * 2);
 }
 
+.tasks-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin: 0 0 var(--space-lg);
+}
+
 .tasks-page h1 {
   font-size: 2rem;
   font-weight: 700;
-  margin: 0 0 var(--space-lg);
+  margin: 0;
 }
 
 /* Tabs */
@@ -207,7 +229,7 @@ button:disabled {
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: var(--color-danger);
+  background: var(--color-danger-hover);
   color: #ffffff;
 }
 

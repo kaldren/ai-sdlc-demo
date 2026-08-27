@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Archive, ListTodo } from "lucide-react";
 import TaskForm from "../components/TaskForm";
 import TaskList from "../components/TaskList";
+import ThemeToggle from "../components/ThemeToggle";
 import * as taskApi from "../services/taskApi";
 import type { Task } from "../services/taskApi";
 
@@ -46,7 +47,10 @@ export default function TasksPage() {
 
   return (
     <main className="tasks-page">
-      <h1>Task Tracker</h1>
+      <div className="tasks-page__header">
+        <h1>Task Tracker</h1>
+        <ThemeToggle />
+      </div>
 
       <TaskForm onCreate={handleCreate} />
 
